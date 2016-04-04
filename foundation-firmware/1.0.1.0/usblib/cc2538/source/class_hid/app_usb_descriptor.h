@@ -52,7 +52,7 @@ TYPEDEF_USB_STRING_DESCRIPTOR(3, 20);
 //
 // Defines the collection of static string descriptors (to ease size calculations)
 //
-typedef __packed struct 
+typedef struct __attribute__((packed)) 
 {
     USB_STRING_0_DESCRIPTOR langIds;
     USB_STRING_1_DESCRIPTOR manufacturer;
@@ -62,7 +62,7 @@ typedef __packed struct
 //
 // Defines the static USB descriptor set
 //
-typedef __packed struct 
+typedef struct __attribute__((packed)) 
 {
     USB_DEVICE_DESCRIPTOR device;
     USB_CONFIGURATION_DESCRIPTOR configuration0;

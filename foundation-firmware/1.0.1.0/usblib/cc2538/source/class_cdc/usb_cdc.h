@@ -102,7 +102,7 @@
 
 
 
-typedef __packed struct {
+typedef struct __attribute__((packed)) {
     uint32_t dteRate;
     uint8_t  charFormat;
     uint8_t  parityType;
@@ -110,7 +110,7 @@ typedef __packed struct {
 } USBCDC_LINE_CODING;
 
 
-typedef __packed struct {
+typedef struct __attribute__((packed)) {
     USBCDC_LINE_CODING lineCoding;
     uint8_t  rts;
     uint8_t  cts;

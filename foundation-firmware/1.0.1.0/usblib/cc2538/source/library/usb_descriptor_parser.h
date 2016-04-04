@@ -46,7 +46,7 @@
  * DEVICE, CONFIGURATION, INTERFACE and  ENDPOINT, but also other types that 
  * use the standard descriptor format:
  * \code
- * typedef __packed struct {
+ * typedef struct __attribute__((packed)) {
  *     uint8_t bLength;                // Size of this descriptor (in bytes)
  *     uint8_t bDescriptorType;        // Descriptor type
  *     ...

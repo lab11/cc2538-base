@@ -68,7 +68,7 @@
  * - Type definition and declaration of standard formatted USB descriptors (starting with length and type
  *   bytes, e.g. \ref USB_DEVICE_DESCRIPTOR)
  *     \code
- *     typedef __packed struct {
+ *     typedef struct __attribute__((packed)) {
  *         USB_DEVICE_DESCRIPTOR device;
  *         ...
  *     } USB_DESCRIPTOR;
@@ -190,7 +190,7 @@
 
 
 /// USB device descriptor
-typedef __packed struct {
+typedef struct __attribute__((packed))  {
     uint8_t  bLength;             ///< Size of this descriptor (in bytes)
     uint8_t  bDescriptorType;     ///< Descriptor type = \ref USB_DESC_TYPE_DEVICE
     uint16_t bcdUSB;              ///< USB specification release number (in BCD, e.g. 0110 for USB 1.1)
@@ -208,7 +208,7 @@ typedef __packed struct {
 } USB_DEVICE_DESCRIPTOR;
 
 /// USB configuration descriptor
-typedef __packed struct {
+typedef struct __attribute__((packed)) {
     uint8_t  bLength;             ///< Size of this descriptor (in bytes)
     uint8_t  bDescriptorType;     ///< Descriptor type = \ref USB_DESC_TYPE_CONFIG
     uint16_t wTotalLength;        ///< Total length of data for this configuration
@@ -220,7 +220,7 @@ typedef __packed struct {
 } USB_CONFIGURATION_DESCRIPTOR;
 
 /// USB interface descriptor
-typedef __packed struct {
+typedef struct __attribute__((packed)) {
     uint8_t  bLength;             ///< Size of this descriptor (in bytes)
     uint8_t  bDescriptorType;     ///< Descriptor type = \ref USB_DESC_TYPE_INTERFACE
     uint8_t  bInterfaceNumber;    ///< Number of *this* interface (zero-based index)
@@ -233,7 +233,7 @@ typedef __packed struct {
 } USB_INTERFACE_DESCRIPTOR;
 
 /// USB endpoint descriptor
-typedef __packed struct {
+typedef struct __attribute__((packed)) {
     uint8_t  bLength;             ///< Size of this descriptor (in bytes)
     uint8_t  bDescriptorType;     ///< Descriptor type = \ref USB_DESC_TYPE_ENDPOINT
     uint8_t  bEndpointAddress;    ///< Endpoint address (direction[7] + number[3:0])
@@ -243,7 +243,7 @@ typedef __packed struct {
 } USB_ENDPOINT_DESCRIPTOR;
 
 /// USB string descriptor
-typedef __packed struct { \
+typedef struct __attribute__((packed)) { \
     uint8_t  bLength;             ///< Size of this descriptor (in bytes)
     uint8_t  bDescriptorType;     ///< Descriptor type = \ref USB_DESC_TYPE_STRING
     uint16_t pString[1];          ///< Unicode string
@@ -251,7 +251,7 @@ typedef __packed struct { \
 
 /// Creates type definition for USB string descriptor with arbitrary unicode character count
 #define TYPEDEF_USB_STRING_DESCRIPTOR(index, charCount) \
-    typedef __packed struct { \
+    typedef struct __attribute__((packed)) { \
         uint8_t  bLength;             /* Size of this descriptor (in bytes) */ \
         uint8_t  bDescriptorType;     /* Descriptor type = \ref USB_DESC_TYPE_STRING */ \
         uint16_t pString[charCount];  /* Unicode string */ \
@@ -261,7 +261,7 @@ typedef __packed struct { \
 
 
 /// USB HID descriptor
-typedef __packed struct {
+typedef struct __attribute__((packed)) {
     uint8_t  bLength;             ///< Size of this descriptor (in bytes)
     uint8_t  bDescriptorType;     ///< Descriptor type = \ref USB_DESC_TYPE_HID
     uint16_t bscHID;              ///< HID specification release number (in BCD)
@@ -275,7 +275,7 @@ typedef __packed struct {
 
 
 /// USB CDC header functional descriptor
-typedef __packed struct { \
+typedef struct __attribute__((packed)) { \
     uint8_t  bFunctionLength;     ///< Size of this descriptor (in bytes)
     uint8_t  bDescriptorType;     ///< Descriptor type = \ref USB_DESC_TYPE_CS_INTERFACE
     uint8_t  bDescriptorSubType;  ///< Descriptor subtype = \ref USBCDC_FUNCDESC_HEADER
@@ -283,7 +283,7 @@ typedef __packed struct { \
 } USBCDC_HEADER_FUNC_DESCRIPTOR;
 
 /// USB CDC abstract control management functional descriptor
-typedef __packed struct { \
+typedef struct __attribute__((packed)) { \
     uint8_t  bFunctionLength;     ///< Size of this descriptor (in bytes)
     uint8_t  bDescriptorType;     ///< Descriptor type = \ref USB_DESC_TYPE_CS_INTERFACE
     uint8_t  bDescriptorSubType;  ///< Descriptor subtype = \ref USBCDC_FUNCDESC_ABS_CTRL_MGMT
@@ -291,7 +291,7 @@ typedef __packed struct { \
 } USBCDC_ABSTRACT_CTRL_MGMT_FUNC_DESCRIPTOR;
 
 /// USB CDC union interface functional descriptor
-typedef __packed struct { \
+typedef struct __attribute__((packed)) { \
     uint8_t  bFunctionLength;     ///< Size of this descriptor (in bytes)
     uint8_t  bDescriptorType;     ///< Descriptor type = \ref USB_DESC_TYPE_CS_INTERFACE
     uint8_t  bDescriptorSubType;  ///< Descriptor subtype = \ref USBCDC_FUNCDESC_UNION_IF
@@ -300,7 +300,7 @@ typedef __packed struct { \
 } USBCDC_UNION_INTERFACE_FUNC_DESCRIPTOR;
 
 /// USB CDC call management functional descriptor
-typedef __packed struct { \
+typedef struct __attribute__((packed)) { \
     uint8_t  bFunctionLength;     ///< Size of this descriptor (in bytes)
     uint8_t  bDescriptorType;     ///< Descriptor type = \ref USB_DESC_TYPE_CS_INTERFACE
     uint8_t  bDescriptorSubType;  ///< Descriptor subtype = \ref USBCDC_FUNCDESC_CALL_MGMT
@@ -312,7 +312,7 @@ typedef __packed struct { \
 
 
 // Look-up table entry for descriptors other than device and configuration (table is NULL-terminated)
-typedef __packed struct {
+typedef struct __attribute__((packed)) {
     uint16_t value;               ///< Value field to be matched
     uint16_t index;               ///< Index field to be matched
     uint16_t length;              ///< Length of the descriptor (maximum returned)
@@ -324,7 +324,7 @@ extern const USB_DESCRIPTOR_LUT pUsbDescriptorLut[];
 
 
 // Look-up table entry specifying double-buffering for each interface descriptor
-typedef __packed struct {
+typedef struct __attribute__((packed)) {
     const USB_INTERFACE_DESCRIPTOR* pInterface; ///< Pointer to the interface descriptor
     uint16_t inMask;              ///< Bitmask for IN endpoints (bit x maps to EPx IN)
     uint16_t outMask;             ///< Bitmask for OUT endpoints (bit x maps to EPx OUT)

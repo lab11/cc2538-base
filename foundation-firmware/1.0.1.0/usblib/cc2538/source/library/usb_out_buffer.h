@@ -70,7 +70,7 @@
 // 
 /// OUT endpoint ring buffer instance
 //
-typedef __packed struct {
+typedef struct __attribute__((packed)) {
     uint16_t size;          ///< Number of bytes in total in the ring-buffer (must be initialized)
     uint16_t count;         ///< Number of bytes currently stored in the ring-buffer (initialize to 0)
     uint16_t head;          ///< Ring-buffer head byte index for software input (initialize to 0)

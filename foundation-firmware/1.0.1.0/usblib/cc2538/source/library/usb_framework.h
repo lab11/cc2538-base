@@ -254,7 +254,7 @@ typedef enum {
 //
 /// USBFW internal module data
 //
-typedef __packed struct {
+typedef struct __attribute__((packed)) {
     uint8_t usbState;           ///< USB device state
     uint8_t ep0Status;          ///< Endpoint 0 status
     uint8_t pEpInStatus[5];     ///< Endpoint 1-5 IN status
@@ -279,19 +279,19 @@ EXTERN USBFW_DATA usbfwData;
 //
 /// Setup header (contains the 8 bytes received during the setup stage)
 //
-typedef __packed struct {
+typedef struct __attribute__((packed)) {
     uint8_t  requestType;     ///< Request type (direction, type and recipient, see the \c RT_ definitions)
     uint8_t  request;         ///< Request ID
-    __packed union {
+    __attribute__((packed)) union {
         uint16_t value;       ///< Value field (little-endian)
-        __packed struct {
+        __attribute__((packed)) struct {
             uint8_t valueLsb; ///< LSB of value field
             uint8_t valueMsb; ///< MSB of value field
         };
     };
-    __packed union {
+    __attribute__((packed)) union {
         uint16_t index;       ///< Value field (little-endian)
-        __packed struct {
+        __attribute__((packed)) struct {
             uint8_t indexLsb; ///< LSB of value field
             uint8_t indexMsb; ///< MSB of value field
         };
@@ -307,7 +307,7 @@ EXTERN USB_SETUP_HEADER usbSetupHeader;
 //
 /// Setup handler data stage configuration
 //
-typedef __packed struct {
+typedef struct __attribute__((packed)) {
     void*    pBuffer;     ///< Pointer to where IN/OUT data should be taken from/received
     uint16_t bytesLeft;   ///< The number of bytes to transfer
 } USB_SETUP_DATA;
