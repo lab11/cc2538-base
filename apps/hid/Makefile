@@ -9,6 +9,7 @@ APPLICATION_SRCS += gpio.c
 APPLICATION_SRCS += interrupt.c
 APPLICATION_SRCS += sys_ctrl.c
 APPLICATION_SRCS += ioc.c
+APPLICATION_SRCS += gptimer.c
 
 APPLICATION_SRCS += usb.c
 APPLICATION_SRCS += usb_suspend.c

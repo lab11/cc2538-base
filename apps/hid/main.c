@@ -45,6 +45,8 @@
 //
 //*****************************************************************************
 #include "bsp.h"
+#include "ioc.h"
+#include "gptimer.h"
 // #include "bsp_key.h"
 #include "bsp_led.h"
 #include "string.h"
@@ -97,6 +99,108 @@ void usbsuspHookExitingSuspend(void) {
     GPIOPowIntDisable(BSP_KEY_DIR_BASE, BSP_KEY_DIR_ALL);
 }
 
+uint8_t send = 0;
+uint8_t count = 0;
+// void buttonPress(void) {
+//      bspLedToggle(BSP_LED_1);
+//     send = 1;
+// }
+
+
+
+
+void
+GPIOBIntHandler(void)
+{
+    uint32_t ui32GPIOIntStatus;
+
+    bspLedToggle(BSP_LED_1);
+
+    //
+    // Get the masked interrupt status.
+    //
+    ui32GPIOIntStatus = GPIOPinIntStatus(GPIO_B_BASE, true);
+
+    //
+    // Simple debounce function wait for button de-press
+    //
+    while(GPIOPinRead(GPIO_B_BASE, GPIO_PIN_6))
+    {
+    }
+
+    //
+    // Acknowledge the GPIO  - Pin n interrupt by clearing the interrupt flag.
+    //
+    GPIOPinIntClear(GPIO_B_BASE, ui32GPIOIntStatus);
+
+    //
+    // Set an interrupt flag to indicate an interrupt has occurred.
+    //
+    // send = 1;
+
+    count += 1;
+
+
+    // Start a timeout timer
+    TimerDisable(GPTIMER0_BASE, GPTIMER_A);
+    TimerLoadSet(GPTIMER0_BASE, GPTIMER_A, SysCtrlClockGet() * 3);
+    TimerEnable(GPTIMER0_BASE, GPTIMER_A);
+
+}
+
+
+void
+Timer0AIntHandler(void)
+{
+    //
+    // Clear the timer interrupt flag.
+    //
+    TimerIntClear(GPTIMER0_BASE, GPTIMER_TIMA_TIMEOUT);
+
+    //
+    // Set a flag to indicate that the interrupt occurred.
+    //
+   send = 1;
+}
+
+
+
+
+void send_char (char c, bool shift) {
+    KEYBOARD_IN_REPORT keybReport;
+    memset(&keybReport, 0x00, sizeof(KEYBOARD_IN_REPORT));
+
+    if (shift) {
+       keybReport.modifiers    = 2;
+       keybReport.pKeyCodes[1] = 0xE1;
+    }
+
+    if (c >= 97 && c <= 122) {
+        keybReport.pKeyCodes[0] = c - 93;
+    } else if (c >= 49 && c <= 57) {
+        keybReport.pKeyCodes[0] = c - 19;
+    } else if (c == '0') {
+        keybReport.pKeyCodes[0] = 39;
+    } else {
+        keybReport.pKeyCodes[0] = 0x38; // "?"
+        keybReport.modifiers    = 2;
+        keybReport.pKeyCodes[1] = 0xE1;
+    }
+    hidUpdateKeyboardInReport(&keybReport);
+
+    while (!hidSendKeyboardInReport()) {
+        usbHidProcessEvents();
+    }
+
+    // Clear button press
+    memset(&keybReport, 0x00, sizeof(KEYBOARD_IN_REPORT));
+    hidUpdateKeyboardInReport(&keybReport);
+
+    while (!hidSendKeyboardInReport()) {
+        usbHidProcessEvents();
+    }
+}
+
 
 //
 // Application entry point
@@ -127,18 +231,43 @@ int main(void)
     bspLedSet(BSP_LED_3);
     bspLedSet(BSP_LED_1);
 
+
     //
     // Configure interrupt with wakeup for all buttons
     //
-    // IntRegister(INT_GPIOA, selKeyRemoteWakeupIsr);
-    // GPIOPowIntTypeSet(BSP_KEY_SEL_BASE, BSP_KEY_SELECT, GPIO_POW_RISING_EDGE);
+    // IntRegister(INT_GPIOB, buttonPress);
+    // GPIOPowIntTypeSet(GPIO_B_BASE, GPIO_PIN_6, GPIO_POW_RISING_EDGE);
     // IntRegister(INT_GPIOC, dirKeyRemoteWakeupIsr);
     // GPIOPowIntTypeSet(BSP_KEY_DIR_BASE, BSP_KEY_DIR_ALL, GPIO_POW_RISING_EDGE);
+
+    GPIOPinTypeGPIOInput(GPIO_B_BASE, GPIO_PIN_6);
+    IOCPadConfigSet(GPIO_B_BASE, GPIO_PIN_6, IOC_OVERRIDE_PUE);
+    GPIOIntTypeSet(GPIO_B_BASE, GPIO_PIN_6, GPIO_RISING_EDGE);
+    GPIOPinIntEnable(GPIO_B_BASE, GPIO_PIN_6);
+
+    IntMasterEnable();
+    IntEnable(INT_GPIOB);
+
+
+
+
+    // setup timer
+    SysCtrlPeripheralEnable(SYS_CTRL_PERIPH_GPT0);
+    TimerConfigure(GPTIMER0_BASE, GPTIMER_CFG_ONE_SHOT);
+    TimerIntEnable(GPTIMER0_BASE, GPTIMER_TIMA_TIMEOUT);
+    IntEnable(INT_TIMER0A);
+
+
+
+
 
     //
     // Initialize button polling for keyboard HID reports
     //
-    memset(&keybReport, 0x00, sizeof(KEYBOARD_IN_REPORT));
+    // memset(&keybReport, 0x00, sizeof(KEYBOARD_IN_REPORT));
+
+
+    bspLedClear(BSP_LED_2);
 
     //
     // Main loop
@@ -151,52 +280,108 @@ int main(void)
         //
         usbHidProcessEvents();
 
+        if (send) {
+            send = 0;
+
+
+            bspLedToggle(BSP_LED_3);
+
+
+
+            // keybReport.modifiers    = 2;
+            // keybReport.pKeyCodes[0] = 0xE1;
+            // keybReport.pKeyCodes[1] = 0x05;  // b
+            // hidUpdateKeyboardInReport(&keybReport);
+            // hidSendKeyboardInReport();
+
+
+            send_char('b', true);
+            send_char('i', true);
+            send_char('l', true);
+            send_char('l', true);
+
+            if (count > 0 && count < 3) {
+                send_char('0', false);
+                send_char('0', false);
+                send_char('1', false);
+            } else if (count >= 3 && count < 7) {
+                send_char('0', false);
+                send_char('0', false);
+                send_char('5', false);
+            } else if (count >= 8 && count < 12) {
+                send_char('0', false);
+                send_char('1', false);
+                send_char('0', false);
+            } else if (count >= 17 && count < 22) {
+                send_char('0', false);
+                send_char('2', false);
+                send_char('0', false);
+            } else if (count >= 45 && count < 55) {
+                send_char('0', false);
+                send_char('5', false);
+                send_char('0', false);
+            } else if (count >= 90 && count < 110) {
+                send_char('1', false);
+                send_char('0', false);
+                send_char('0', false);
+            } else {
+                send_char('E', false);
+                send_char('R', false);
+                send_char('R', false);
+            }
+
+            count = 0;
+
+
+
+        }
+
         //
         // Generate keyboard input
         //
-        if (!keybReportSendReq)
-        {
+        // if (!keybReportSendReq)
+        // {
 
-            bspLedToggle(BSP_LED_1);
+        //     bspLedToggle(BSP_LED_1);
 
-            // switch (bspKeyPushed(BSP_KEY_ALL))
-            // {
-            // case BSP_KEY_LEFT:
-                currKey += 1;
-                if (currKey > 0x25) {
-                    currKey = 0x17;
-                }
-            //     break;
-            // case BSP_KEY_RIGHT:
-            //     currKey = 0x4F;
-            //     break;
-            // case BSP_KEY_UP:
-            //     currKey = 0x52;
-            //     break;
-            // case BSP_KEY_DOWN:
-            //     currKey = 0x51;
-            //     break;
-            // case BSP_KEY_SELECT:
-            //     currKey = 0x28;
-            //     break;
-            // default:
-            //     currKey = 0x00;
-            //     break;
-            // }
-            if (currKey != keybReport.pKeyCodes[0])
-            {
-                keybReport.pKeyCodes[0] = currKey;
-                hidUpdateKeyboardInReport(&keybReport);
-                keybReportSendReq = true;
-            }
-        }
-        if (keybReportSendReq)
-        {
-            if (hidSendKeyboardInReport())
-            {
-                keybReportSendReq = false;
-            }
-        }
+        //     // switch (bspKeyPushed(BSP_KEY_ALL))
+        //     // {
+        //     // case BSP_KEY_LEFT:
+        //         currKey += 1;
+        //         if (currKey > 0x25) {
+        //             currKey = 0x17;
+        //         }
+        //     //     break;
+        //     // case BSP_KEY_RIGHT:
+        //     //     currKey = 0x4F;
+        //     //     break;
+        //     // case BSP_KEY_UP:
+        //     //     currKey = 0x52;
+        //     //     break;
+        //     // case BSP_KEY_DOWN:
+        //     //     currKey = 0x51;
+        //     //     break;
+        //     // case BSP_KEY_SELECT:
+        //     //     currKey = 0x28;
+        //     //     break;
+        //     // default:
+        //     //     currKey = 0x00;
+        //     //     break;
+        //     // }
+        //     if (currKey != keybReport.pKeyCodes[0])
+        //     {
+        //         keybReport.pKeyCodes[0] = currKey;
+        //         hidUpdateKeyboardInReport(&keybReport);
+        //         keybReportSendReq = true;
+        //     }
+        // }
+        // if (keybReportSendReq)
+        // {
+        //     if (hidSendKeyboardInReport())
+        //     {
+        //         keybReportSendReq = false;
+        //     }
+        // }
     }
 
 }
