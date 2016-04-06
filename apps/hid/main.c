@@ -1,53 +1,7 @@
-//*****************************************************************************
-//! @file       main.c
-//! @brief      Main file for CC2538 HID example. In this example, the
-//!             directional keys are mapped as directional keys on the PC.
-//!             The SmartRF06EB SELECT key is mapped as Return on the PC.
-//!             SmartRF06EB LEDs indicate Num lock, scroll lock and caps lock.
-//!
-//! Revised     $Date: 2013-03-26 09:47:02 +0100 (Tue, 26 Mar 2013) $
-//! Revision    $Revision: 9535 $
-//
-//  Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
-//
-//
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions
-//  are met:
-//
-//    Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//
-//    Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-//
-//    Neither the name of Texas Instruments Incorporated nor the names of
-//    its contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-//  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-//  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-//  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-//  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-//  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-//  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-//  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-//  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//****************************************************************************/
 
-//*****************************************************************************
-//
-// Include driver libraries
-//
-//*****************************************************************************
 #include "bsp.h"
 #include "ioc.h"
 #include "gptimer.h"
-// #include "bsp_key.h"
 #include "bsp_led.h"
 #include "string.h"
 #include "usb_hid.h"
@@ -101,65 +55,78 @@ void usbsuspHookExitingSuspend(void) {
 
 uint8_t send = 0;
 uint8_t count = 0;
-// void buttonPress(void) {
-//      bspLedToggle(BSP_LED_1);
-//     send = 1;
-// }
+uint32_t last_interrupt_time = 0;
+
+void gpio_toggle (uint32_t base, uint8_t ui8Leds) {
+    uint32_t ui32Toggle = GPIOPinRead(base, ui8Leds);
+    ui32Toggle = (~ui32Toggle) & ui8Leds;
+    GPIOPinWrite(base, ui8Leds, ui32Toggle);
+}
 
 
 
 
-void
-GPIOBIntHandler(void)
-{
+
+
+void GPIOBIntHandler(void) {
     uint32_t ui32GPIOIntStatus;
 
     bspLedToggle(BSP_LED_1);
 
-    //
     // Get the masked interrupt status.
-    //
     ui32GPIOIntStatus = GPIOPinIntStatus(GPIO_B_BASE, true);
 
-    //
-    // Simple debounce function wait for button de-press
-    //
-    while(GPIOPinRead(GPIO_B_BASE, GPIO_PIN_6))
-    {
-    }
-
-    //
     // Acknowledge the GPIO  - Pin n interrupt by clearing the interrupt flag.
-    //
     GPIOPinIntClear(GPIO_B_BASE, ui32GPIOIntStatus);
 
-    //
-    // Set an interrupt flag to indicate an interrupt has occurred.
-    //
-    // send = 1;
+    // Check to make sure this is valid, and to debounce (not strictly sure
+    // this is necessary...).
+    bool valid_pulse = false;
 
-    count += 1;
+    if (count == 0) {
+        // On first edge we know we are good
+        valid_pulse = true;
+    } else {
+        // See if this is a valid edge
+        uint32_t curr_time = TimerValueGet(GPTIMER0_BASE, GPTIMER_A);
+        // Must be at least 50 ms from last edge
+        if ((last_interrupt_time - curr_time) > (SysCtrlClockGet() / 20)) {
+            valid_pulse = true;
+        }
+    }
 
+    // Increment our dollar count and set a timeout timer
+    if (valid_pulse) {
 
-    // Start a timeout timer
-    TimerDisable(GPTIMER0_BASE, GPTIMER_A);
-    TimerLoadSet(GPTIMER0_BASE, GPTIMER_A, SysCtrlClockGet() * 3);
-    TimerEnable(GPTIMER0_BASE, GPTIMER_A);
+        count += 1;
+
+        // Start a timeout timer
+        TimerDisable(GPTIMER0_BASE, GPTIMER_A);
+        TimerLoadSet(GPTIMER0_BASE, GPTIMER_A, SysCtrlClockGet() * 3);
+        TimerEnable(GPTIMER0_BASE, GPTIMER_A);
+
+        // Save the time we got this edge so we can detect if the next one
+        // is too close.
+        last_interrupt_time = TimerValueGet(GPTIMER0_BASE, GPTIMER_A);
+
+        gpio_toggle(GPIO_B_BASE, GPIO_PIN_5);
+
+        // On the first edge send a notice so the listener knows its getting
+        // data.
+        if (count == 1) {
+            send = 2;
+        }
+    }
 
 }
 
 
-void
-Timer0AIntHandler(void)
-{
-    //
+void Timer0AIntHandler(void) {
     // Clear the timer interrupt flag.
-    //
     TimerIntClear(GPTIMER0_BASE, GPTIMER_TIMA_TIMEOUT);
 
-    //
-    // Set a flag to indicate that the interrupt occurred.
-    //
+    // Set a flag to indicate that the timeout interrupt occurred
+    // and that we should report the dollar amount.
    send = 1;
 }
 
@@ -181,6 +148,8 @@ void send_char (char c, bool shift) {
         keybReport.pKeyCodes[0] = c - 19;
     } else if (c == '0') {
         keybReport.pKeyCodes[0] = 39;
+    } else if (c == '\n') {
+        keybReport.pKeyCodes[0] = 0x28;
     } else {
         keybReport.pKeyCodes[0] = 0x38; // "?"
         keybReport.modifiers    = 2;
@@ -202,14 +171,13 @@ void send_char (char c, bool shift) {
 }
 
 
+
+
+
 //
 // Application entry point
 //
-int main(void)
-{
-    KEYBOARD_IN_REPORT keybReport;
-    uint8_t keybReportSendReq = false;
-    uint8_t currKey = 0x17;
+int main (void) {
 
     //
     // Initialize board and system clock
@@ -226,10 +194,12 @@ int main(void)
     // control D+ pull-up)
     //
     GPIOPinTypeGPIOOutput(BSP_LED_BASE, BSP_LED_2 | BSP_LED_3 | BSP_LED_1);
+    GPIOPinTypeGPIOOutput(GPIO_B_BASE, GPIO_PIN_5);
 
     bspLedSet(BSP_LED_2);
     bspLedSet(BSP_LED_3);
     bspLedSet(BSP_LED_1);
+
 
 
     //
@@ -261,127 +231,77 @@ int main(void)
 
 
 
-    //
-    // Initialize button polling for keyboard HID reports
-    //
-    // memset(&keybReport, 0x00, sizeof(KEYBOARD_IN_REPORT));
-
 
     bspLedClear(BSP_LED_2);
 
-    //
     // Main loop
-    //
-    while (1)
-    {
+    while (1) {
 
-        //
         // Process USB events
-        //
         usbHidProcessEvents();
 
-        if (send) {
+        if (send == 1) {
             send = 0;
 
+            uint8_t local_count = count;
+            count = 0;
 
             bspLedToggle(BSP_LED_3);
-
-
-
-            // keybReport.modifiers    = 2;
-            // keybReport.pKeyCodes[0] = 0xE1;
-            // keybReport.pKeyCodes[1] = 0x05;  // b
-            // hidUpdateKeyboardInReport(&keybReport);
-            // hidSendKeyboardInReport();
-
 
             send_char('b', true);
             send_char('i', true);
             send_char('l', true);
             send_char('l', true);
 
-            if (count > 0 && count < 3) {
+            if (local_count > 0 && local_count < 3) {
                 send_char('0', false);
                 send_char('0', false);
                 send_char('1', false);
-            } else if (count >= 3 && count < 7) {
+            } else if (local_count >= 3 && local_count < 7) {
                 send_char('0', false);
                 send_char('0', false);
                 send_char('5', false);
-            } else if (count >= 8 && count < 12) {
+            } else if (local_count >= 8 && local_count < 12) {
                 send_char('0', false);
                 send_char('1', false);
                 send_char('0', false);
-            } else if (count >= 17 && count < 22) {
+            } else if (local_count >= 17 && local_count < 22) {
                 send_char('0', false);
                 send_char('2', false);
                 send_char('0', false);
-            } else if (count >= 45 && count < 55) {
+            } else if (local_count >= 45 && local_count < 55) {
                 send_char('0', false);
                 send_char('5', false);
                 send_char('0', false);
-            } else if (count >= 90 && count < 110) {
+            } else if (local_count >= 90 && local_count < 110) {
                 send_char('1', false);
                 send_char('0', false);
                 send_char('0', false);
             } else {
-                send_char('E', false);
-                send_char('R', false);
-                send_char('R', false);
+                send_char('e', true);
+                send_char('r', true);
+                send_char('r', true);
             }
 
-            count = 0;
+            // send_char('\n', false);
 
 
 
+
+        } else if (send == 2) {
+            send = 0;
+
+            send_char('b', true);
+            send_char('i', true);
+            send_char('l', true);
+            send_char('l', true);
+            send_char('b', true);
+            send_char('e', true);
+            send_char('g', true);
+
+            // send_char('\n', false);
         }
 
-        //
-        // Generate keyboard input
-        //
-        // if (!keybReportSendReq)
-        // {
-
-        //     bspLedToggle(BSP_LED_1);
-
-        //     // switch (bspKeyPushed(BSP_KEY_ALL))
-        //     // {
-        //     // case BSP_KEY_LEFT:
-        //         currKey += 1;
-        //         if (currKey > 0x25) {
-        //             currKey = 0x17;
-        //         }
-        //     //     break;
-        //     // case BSP_KEY_RIGHT:
-        //     //     currKey = 0x4F;
-        //     //     break;
-        //     // case BSP_KEY_UP:
-        //     //     currKey = 0x52;
-        //     //     break;
-        //     // case BSP_KEY_DOWN:
-        //     //     currKey = 0x51;
-        //     //     break;
-        //     // case BSP_KEY_SELECT:
-        //     //     currKey = 0x28;
-        //     //     break;
-        //     // default:
-        //     //     currKey = 0x00;
-        //     //     break;
-        //     // }
-        //     if (currKey != keybReport.pKeyCodes[0])
-        //     {
-        //         keybReport.pKeyCodes[0] = currKey;
-        //         hidUpdateKeyboardInReport(&keybReport);
-        //         keybReportSendReq = true;
-        //     }
-        // }
-        // if (keybReportSendReq)
-        // {
-        //     if (hidSendKeyboardInReport())
-        //     {
-        //         keybReportSendReq = false;
-        //     }
-        // }
     }
 
 }
