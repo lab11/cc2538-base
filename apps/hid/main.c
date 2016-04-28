@@ -1,4 +1,7 @@
 
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "bsp.h"
 #include "ioc.h"
 #include "gptimer.h"
@@ -89,8 +92,8 @@ void GPIOBIntHandler(void) {
     } else {
         // See if this is a valid edge
         uint32_t curr_time = TimerValueGet(GPTIMER0_BASE, GPTIMER_A);
-        // Must be at least 50 ms from last edge
-        if ((last_interrupt_time - curr_time) > (SysCtrlClockGet() / 20)) {
+        // Must be at least 30 ms from last edge
+        if ((last_interrupt_time - curr_time) > (SysCtrlClockGet() / 33)) {
             valid_pulse = true;
         }
     }
@@ -102,7 +105,8 @@ void GPIOBIntHandler(void) {
 
         // Start a timeout timer
         TimerDisable(GPTIMER0_BASE, GPTIMER_A);
-        TimerLoadSet(GPTIMER0_BASE, GPTIMER_A, SysCtrlClockGet() * 3);
+        // Timeout in 100 ms
+        TimerLoadSet(GPTIMER0_BASE, GPTIMER_A, SysCtrlClockGet() / 10);
         TimerEnable(GPTIMER0_BASE, GPTIMER_A);
 
         // Save the time we got this edge so we can detect if the next one
@@ -171,6 +175,30 @@ void send_char (char c, bool shift) {
 }
 
 
+void dollars_to_characters (int dollars) {
+    char buf[10];
+    int offset = 0;
+
+    if (dollars < 100) {
+        offset++;
+        buf[0] = '0';
+    }
+    if (dollars < 10) {
+        offset++;
+        buf[1] = '0';
+    }
+
+    itoa(dollars, buf+offset, 10);
+
+    int i;
+    for (i=0; i<3; i++) {
+        send_char(buf[i], false);
+    }
+
+}
+
+
+
 
 
 
@@ -189,10 +217,7 @@ int main (void) {
     //
     usbHidInit();
 
-    //
-    // Initialize GPIO pins for keyboard LEDs (LED 1 on PC0 is used by USB to
-    // control D+ pull-up)
-    //
+    // Initialize GPIO pins for LEDs
     GPIOPinTypeGPIOOutput(BSP_LED_BASE, BSP_LED_2 | BSP_LED_3 | BSP_LED_1);
     GPIOPinTypeGPIOOutput(GPIO_B_BASE, GPIO_PIN_5);
 
@@ -211,7 +236,7 @@ int main (void) {
     // GPIOPowIntTypeSet(BSP_KEY_DIR_BASE, BSP_KEY_DIR_ALL, GPIO_POW_RISING_EDGE);
 
     GPIOPinTypeGPIOInput(GPIO_B_BASE, GPIO_PIN_6);
-    IOCPadConfigSet(GPIO_B_BASE, GPIO_PIN_6, IOC_OVERRIDE_PUE);
+    IOCPadConfigSet(GPIO_B_BASE, GPIO_PIN_6, IOC_OVERRIDE_DIS);
     GPIOIntTypeSet(GPIO_B_BASE, GPIO_PIN_6, GPIO_RISING_EDGE);
     GPIOPinIntEnable(GPIO_B_BASE, GPIO_PIN_6);
 
@@ -253,37 +278,45 @@ int main (void) {
             send_char('l', true);
             send_char('l', true);
 
-            if (local_count > 0 && local_count < 3) {
-                send_char('0', false);
-                send_char('0', false);
-                send_char('1', false);
-            } else if (local_count >= 3 && local_count < 7) {
-                send_char('0', false);
-                send_char('0', false);
-                send_char('5', false);
-            } else if (local_count >= 8 && local_count < 12) {
-                send_char('0', false);
-                send_char('1', false);
-                send_char('0', false);
-            } else if (local_count >= 17 && local_count < 22) {
-                send_char('0', false);
-                send_char('2', false);
-                send_char('0', false);
-            } else if (local_count >= 45 && local_count < 55) {
-                send_char('0', false);
-                send_char('5', false);
-                send_char('0', false);
-            } else if (local_count >= 90 && local_count < 110) {
-                send_char('1', false);
-                send_char('0', false);
-                send_char('0', false);
-            } else {
-                send_char('e', true);
-                send_char('r', true);
-                send_char('r', true);
-            }
+            dollars_to_characters(local_count);
 
-            // send_char('\n', false);
+            // // if (local_count > 0 && local_count < 3) {
+            // if (local_count == 1) {
+            //     send_char('0', false);
+            //     send_char('0', false);
+            //     send_char('1', false);
+            // // } else if (local_count >= 3 && local_count < 7) {
+            // } else if (local_count == 5) {
+            //     send_char('0', false);
+            //     send_char('0', false);
+            //     send_char('5', false);
+            // // } else if (local_count >= 8 && local_count < 12) {
+            // } else if (local_count == 10) {
+            //     send_char('0', false);
+            //     send_char('1', false);
+            //     send_char('0', false);
+            // // } else if (local_count >= 17 && local_count < 22) {
+            // } else if (local_count == 20) {
+            //     send_char('0', false);
+            //     send_char('2', false);
+            //     send_char('0', false);
+            // // } else if (local_count >= 45 && local_count < 55) {
+            // } else if (local_count == 50) {
+            //     send_char('0', false);
+            //     send_char('5', false);
+            //     send_char('0', false);
+            // // } else if (local_count >= 90 && local_count < 110) {
+            // } else if (local_count == 100) {
+            //     send_char('1', false);
+            //     send_char('0', false);
+            //     send_char('0', false);
+            // } else {
+            //     send_char('e', true);
+            //     send_char('r', true);
+            //     send_char('r', true);
+            // }
+
+            // // send_char('\n', false);
 
 
 
