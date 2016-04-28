@@ -80,7 +80,7 @@ LIBRARY_PATHS += $(FF_PATH)/usblib/cc2538/source/library/cc2538
 
 SOURCE_PATHS += $(FF_PATH)/driverlib/cc2538/source
 SOURCE_PATHS += $(FF_PATH)/usblib/cc2538/source/class_hid
-# SOURCE_PATHS += $(FF_PATH)/usblib/cc2538/source/class_cdc
+SOURCE_PATHS += $(FF_PATH)/usblib/cc2538/source/class_cdc
 SOURCE_PATHS += $(FF_PATH)/usblib/cc2538/source/library
 SOURCE_PATHS += $(FF_PATH)/usblib/cc2538/source/library/cc2538
 
